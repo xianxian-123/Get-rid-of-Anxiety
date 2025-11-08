@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小遊戲</title>
+    <style>
+        /* --- 基礎排版與容器樣式 --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7f9fc;
+            padding: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        #input-area { max-width: 800px; margin: 20px auto; padding: 25px; background-color: #ffffff; border-radius: 15px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); }
+        .subject-input-row { display: flex; align-items: center; margin-bottom: 15px; padding: 10px; border-bottom: 1px solid #eee; }
+        .subject-input-row label { font-weight: bold; color: #5a7d7d; width: 80px; text-align: left; margin-right: 15px; }
+        input[type="text"] { padding: 8px; border: 1px solid #ddd; border-radius: 5px; flex-grow: 1; margin-right: 15px; }
+        .cta-button { padding: 8px 15px; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: background-color 0.3s; }
+        .cta-button:hover { opacity: 0.9; }
+
+        /* 彈藥庫樣式 */
+        #ammo-container {
+            min-height: 150px; border: 3px dashed #a3c1e8; border-radius: 10px; padding: 20px; margin-top: 30px; max-width: 800px; margin-left: auto; margin-right: auto; display: flex; flex-wrap: wrap; gap: 15px; align-content: flex-start; text-align: left;
+            position: relative;
+        }
+
+        /* --- 炸彈樣式 --- */
+        .effort-bomb {
+            width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold; cursor: move; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); position: relative; 
+            transition: transform 0.2s; overflow: hidden; text-align: center; 
+        }
+        .effort-bomb.dragging { position: absolute; z-index: 1000; }
+        .effort-bomb::before { content: '🔥'; position: absolute; top: -10px; right: 25px; font-size: 15px; line-height: 1; }
+        .bomb-text { padding: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
+        /* 炸彈顏色 */
+        .bomb-chinese { background-color: #ff6b6b; } .bomb-english { background-color: #4CAF50; } .bomb-biology { background-color: #ffc300; } .bomb-chemistry { background-color: #00bcd4; } .bomb-physics { background-color: #9c27b0; } 
+        
+        /* 貶低目標戰鬥區樣式 */
+        #battle-area {
+            max-width: 800px; min-height: 250px; margin: 30px auto; padding: 20px; border: 3px solid #ffcccc; border-radius: 10px; background-color: #fff0f0; position: relative; text-align: center;
+        }
+
+        /* --- 目標樣式調整為文字顯示 --- */
+        .negativity-target {
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 3px solid #ff4757;
+            border-radius: 10px; /* 增加圓角 */
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s;
+            overflow: hidden; 
+            
+            /* 文字樣式 */
+            background-color: #ffeaea; /* 輕微的背景色 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #d63031;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .negativity-target.hit-ready {
+            border-color: #4CAF50;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+            background-color: #e8f5e9; /* 準備擊中時變色 */
+        }
+            
+        /* --- 文字碎裂動畫：使用縮放和透明度模擬文字消散 --- */
+        @keyframes shatter {
+            0% { 
+                transform: scale(1) rotate(0deg); 
+                opacity: 1; 
+            }
+            100% { 
+                /* 讓文字縮小並快速淡出 */
+                transform: scale(0.1) rotate(-10deg); 
+                opacity: 0; 
+                filter: blur(5px);
+            }
+        }
+            
+        .detonate-animation {
+            /* 直接對目標容器應用動畫 */
+            animation: shatter 0.5s ease-out forwards; 
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📚今天做了哪些?<h1>
+        <p>投入的努力來打擊你討厭的<p>
+    </header>
+
+    <section id="input-area">
+        <h2>📝 紀錄你的努力</h2>
+
+        <div class="subject-input-row">
+            <label for="effort-chinese">國文</label>
+            <input type="text" id="effort-chinese" placeholder="看幾分鐘也算喔">
+            <button class="cta-button bomb-chinese" onclick="generateBomb('chinese')">生成炸彈</button>
+        </div>
+        <div class="subject-input-row">
+            <label for="effort-english">英文</label>
+            <input type="text" id="effort-english" placeholder="背一個算一個">
+            <button class="cta-button bomb-english" onclick="generateBomb('english')">生成炸彈</button>
+        </div>
+        <div class="subject-input-row">
+            <label for="effort-biology">生物</label>
+            <input type="text" id="effort-biology" placeholder="我知道你這個最強了">
+            <button class="cta-button bomb-biology" onclick="generateBomb('biology')">生成炸彈</button>
+        </div>
+        <div class="subject-input-row">
+            <label for="effort-chemistry">化學</label>
+            <input type="text" id="effort-chemistry" placeholder="沒事多算就熟了">
+            <button class="cta-button bomb-chemistry" onclick="generateBomb('chemistry')">生成炸彈</button>
+        </div>
+        <div class="subject-input-row">
+            <label for="effort-physics">物理</label>
+            <input type="text" id="effort-physics" placeholder="有觀念就很棒了">
+            <button class="cta-button bomb-physics" onclick="generateBomb('physics')">生成炸彈</button>
+        </div>
+    </section>
+
+    <section>
+        <h2>💣 彈藥庫 (拖曳這裡的炸彈來打下面的壞壞</h2>
+        <div id="ammo-container">
+            <p style="color: #666; width: 100%; text-align: center;" id="placeholder-text">當你輸入努力會有炸彈</p>
+        </div>
+    </section>
+
+    <section id="battle-area">
+        <h2>🚨 臭臭壞壞王八蛋🚨 <h2>
+        <p>請將上方的努力炸彈拖曳到這個目標上，擊碎傷人的話<p>
+            
+        <div id="negativityTarget" class="negativity-target">
+            </div>
+            
+        <div id="feedback" style="margin-top: 190px; color: green; font-weight: bold;"></div>
+    </section>
+
+    <script>
+        const ammoContainer = document.getElementById('ammo-container');
+        const placeholderText = document.getElementById('placeholder-text');
+        const negativityTarget = document.getElementById('negativityTarget');
+        const feedbackElement = document.getElementById('feedback');
+
+        // --- 核心改動：隨機負面文字陣列 ---
+        const negativeTargetTexts = [
+            "還不錯嘛，對你來說",      
+            "蛤你過了?",     
+            "喔~你可以考成這樣喔?",   
+            "不錯嘛",  
+            "他根本只是無聊才跟你談",     
+            "你叫我複習我才複習結果你考那樣",
+            "我讀的還不夠",
+            "ㄚㄚㄚ快沒時間了"
+        ];
+
+        // ----------------------------------------------------
+        // 核心邏輯一：炸彈生成 (保持不變)
+        // ----------------------------------------------------
+
+        function generateBomb(subject) {
+            const inputElement = document.getElementById(`effort-${subject}`);
+            const effortText = inputElement.value.trim();
+            
+            if (effortText === "") {
+                alert(`請輸入你在${subject}上的努力內容！`);
+                return;
+            }
+
+            if (placeholderText) {
+                placeholderText.style.display = 'none';
+            }
+
+            const bomb = document.createElement('div');
+            bomb.className = `effort-bomb bomb-${subject}`;  
+            bomb.setAttribute('data-subject', subject);
+            bomb.setAttribute('data-effort', effortText);   
+
+            const bombText = document.createElement('div');
+            bombText.className = 'bomb-text';
+            bombText.textContent = effortText;
+            bomb.appendChild(bombText);
+            
+            ammoContainer.appendChild(bomb);
+            makeDraggable(bomb);
+            inputElement.value = '';
+
+            feedbackElement.textContent = `🎉 ${subject.toUpperCase()} 努力成功儲存`;
+        }
+
+        // ----------------------------------------------------
+        // 核心邏輯二：拖曳功能 (優化為精確鼠標跟隨)
+        // ----------------------------------------------------
+
+        function makeDraggable(element) {
+            // 固定將偏移量設定為炸彈寬度/高度的一半 (80px / 2 = 40px)
+            const CENTER_OFFSET_X = 40; 
+            const CENTER_OFFSET_Y = 40; 
+
+            element.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                
+                // 1. 切換到絕對定位 (開始拖曳)
+                element.classList.add('dragging'); 
+                
+                // 2. 根據當前鼠標位置減去中心偏移量，設定炸彈的起始位置
+                element.style.left = (e.clientX - CENTER_OFFSET_X) + 'px';
+                element.style.top = (e.clientY - CENTER_OFFSET_Y) + 'px';
+
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                
+                // 使用中心偏移量來定位炸彈的左上角，實現滑鼠對準中心
+                element.style.top = (e.clientY - CENTER_OFFSET_Y) + "px";
+                element.style.left = (e.clientX - CENTER_OFFSET_X) + "px";
+
+                // 碰撞偵測
+                if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
+                    negativityTarget.classList.add('hit-ready');
+                    feedbackElement.textContent = "🎯 瞄準成功！鬆開即可擊碎！";
+                } else {
+                    negativityTarget.classList.remove('hit-ready');
+                    feedbackElement.textContent = "🚨 打碎看不起你的話 🚨";
+                }
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                
+                // 移除拖曳狀態類別
+                element.classList.remove('dragging');
+
+                if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
+                    detonate(element, negativityTarget);
+                } else {
+                    // 如果沒有擊中，將其從 DOM 移除
+                    element.remove(); 
+                    feedbackElement.textContent = "⚠️ 擊碎失敗";
+                    negativityTarget.classList.remove('hit-ready');
+                    
+                    // 檢查彈藥庫是否清空，如果是則顯示提示文字
+                    if (ammoContainer.children.length === 0) {
+                        placeholderText.style.display = 'block';
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        // 核心邏輯三：碰撞偵測、爆炸動畫與隨機載入 (修改為文字)
+        // ----------------------------------------------------
+
+        function isColliding(a, b) {
+            const aRect = a.getBoundingClientRect();
+            const bRect = b.getBoundingClientRect();
+            
+            return !(
+                aRect.bottom < bRect.top ||
+                aRect.top > bRect.bottom ||
+                aRect.right < bRect.left ||
+                aRect.left > bRect.right
+            );
+        }
+
+        /**
+         * 處理爆炸動畫和移除元素
+         */
+        function detonate(bomb, target) {
+            const effort = bomb.getAttribute('data-effort');
+            const subject = bomb.getAttribute('data-subject');
+            
+            // 1. 啟動碎裂動畫 (直接對目標容器)
+            target.classList.add('detonate-animation');  
+            bomb.remove(); // 炸彈立刻消失
+
+            // 2. 正向肯定語
+            feedbackElement.textContent = `💥 成功擊碎！你的 ${subject.toUpperCase()} 努力：「${effort}」他的的印象！`;
+
+            // 3. 等待動畫完成 (0.5秒) 後，移除動畫類別並載入新目標
+            setTimeout(() => {
+                target.classList.remove('detonate-animation');
+                loadRandomTarget(); // 載入新的隨機目標
+                negativityTarget.classList.remove('hit-ready');
+            }, 1000); 
+            
+            // 檢查彈藥庫是否清空
+            if (ammoContainer.children.length === 0) {
+                placeholderText.style.display = 'block';
+            }
+        }
+
+        /**
+         * 載入一個隨機的貶低文字目標
+         */
+        function loadRandomTarget() {
+            // 隨機選取文字
+            const randomIndex = Math.floor(Math.random() * negativeTargetTexts.length);
+            const randomText = negativeTargetTexts[randomIndex];
+            
+            // 清空舊內容並加入新文字
+            negativityTarget.textContent = randomText;
+            
+            // 更新狀態提示
+            feedbackElement.textContent = "🚨 壞壞討厭王八蛋 🚨";
+        }
+
+        // 頁面初始化：載入第一個隨機目標
+        document.addEventListener('DOMContentLoaded', loadRandomTarget);
+    </script>
+</body>
+</html>
