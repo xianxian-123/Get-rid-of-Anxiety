@@ -203,73 +203,94 @@
             feedbackElement.textContent = `🎉 ${subject.toUpperCase()} 努力成功儲存`;
         }
 
-        // ----------------------------------------------------
-        // 核心邏輯二：拖曳功能 (優化為精確鼠標跟隨)
-        // ----------------------------------------------------
+       // ----------------------------------------------------
+// 核心邏輯二：拖曳功能 (同時支持滑鼠和觸控)
+// ----------------------------------------------------
 
-        function makeDraggable(element) {
-            // 固定將偏移量設定為炸彈寬度/高度的一半 (80px / 2 = 40px)
-            const CENTER_OFFSET_X = 40; 
-            const CENTER_OFFSET_Y = 40; 
+function makeDraggable(element) {
+    // 固定將偏移量設定為炸彈寬度/高度的一半 (80px / 2 = 40px)
+    const CENTER_OFFSET_X = 40; 
+    const CENTER_OFFSET_Y = 40; 
 
-            element.onmousedown = dragMouseDown;
+    // 1. 綁定滑鼠事件
+    element.onmousedown = startDrag;
 
-            function dragMouseDown(e) {
-                e = e || window.event;
-                e.preventDefault();
-                
-                // 1. 切換到絕對定位 (開始拖曳)
-                element.classList.add('dragging'); 
-                
-                // 2. 根據當前鼠標位置減去中心偏移量，設定炸彈的起始位置
-                element.style.left = (e.clientX - CENTER_OFFSET_X) + 'px';
-                element.style.top = (e.clientY - CENTER_OFFSET_Y) + 'px';
+    // 2. 綁定觸控事件
+    element.addEventListener('touchstart', startDrag, { passive: false }); // { passive: false } 允許我們使用 preventDefault
 
-                document.onmouseup = closeDragElement;
-                document.onmousemove = elementDrag;
-            }
+    // 統一的開始拖曳處理函數
+    function startDrag(e) {
+        e.preventDefault(); // 阻止瀏覽器的預設行為（例如手機上的滾動或縮放）
+        
+        // 取得當前事件的座標 (如果是觸控，取第一個觸控點)
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        
+        // 1. 切換到絕對定位 (開始拖曳)
+        element.classList.add('dragging'); 
+        
+        // 2. 根據當前鼠標/觸控位置減去中心偏移量，設定炸彈的起始位置
+        element.style.left = (clientX - CENTER_OFFSET_X) + 'px';
+        element.style.top = (clientY - CENTER_OFFSET_Y) + 'px';
 
-            function elementDrag(e) {
-                e = e || window.event;
-                e.preventDefault();
-                
-                // 使用中心偏移量來定位炸彈的左上角，實現滑鼠對準中心
-                element.style.top = (e.clientY - CENTER_OFFSET_Y) + "px";
-                element.style.left = (e.clientX - CENTER_OFFSET_X) + "px";
+        // 綁定移動和結束事件
+        if (e.type.startsWith('touch')) {
+            document.addEventListener('touchmove', elementDrag, { passive: false });
+            document.addEventListener('touchend', closeDragElement);
+        } else {
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+    }
 
-                // 碰撞偵測
-                if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
-                    negativityTarget.classList.add('hit-ready');
-                    feedbackElement.textContent = "🎯 瞄準成功！鬆開即可擊碎！";
-                } else {
-                    negativityTarget.classList.remove('hit-ready');
-                    feedbackElement.textContent = "🚨 打碎看不起你的話 🚨";
-                }
-            }
+    // 統一的移動處理函數
+    function elementDrag(e) {
+        e.preventDefault(); // 阻止拖曳時的瀏覽器預設滾動行為
+        
+        // 取得當前事件的座標
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        
+        // 使用中心偏移量來定位炸彈的左上角，實現滑鼠/觸控對準中心
+        element.style.top = (clientY - CENTER_OFFSET_Y) + "px";
+        element.style.left = (clientX - CENTER_OFFSET_X) + "px";
 
-            function closeDragElement() {
-                document.onmouseup = null;
-                document.onmousemove = null;
-                
-                // 移除拖曳狀態類別
-                element.classList.remove('dragging');
+        // 碰撞偵測 (保持不變)
+        if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
+            negativityTarget.classList.add('hit-ready');
+            feedbackElement.textContent = "🎯 瞄準成功！鬆開手指即可擊碎！"; // 提示詞也改成通用的
+        } else {
+            negativityTarget.classList.remove('hit-ready');
+            feedbackElement.textContent = "🚨 外界貶低壓力區 🚨";
+        }
+    }
 
-                if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
-                    detonate(element, negativityTarget);
-                } else {
-                    // 如果沒有擊中，將其從 DOM 移除
-                    element.remove(); 
-                    feedbackElement.textContent = "⚠️ 擊碎失敗";
-                    negativityTarget.classList.remove('hit-ready');
-                    
-                    // 檢查彈藥庫是否清空，如果是則顯示提示文字
-                    if (ammoContainer.children.length === 0) {
-                        placeholderText.style.display = 'block';
-                    }
-                }
+    // 統一的結束拖曳處理函數
+    function closeDragElement(e) {
+        // 解除事件綁定
+        document.onmouseup = null;
+        document.onmousemove = null;
+        document.removeEventListener('touchmove', elementDrag);
+        document.removeEventListener('touchend', closeDragElement);
+        
+        // 移除拖曳狀態類別
+        element.classList.remove('dragging');
+
+        if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
+            detonate(element, negativityTarget);
+        } else {
+            // 如果沒有擊中，將其從 DOM 移除
+            element.remove(); 
+            feedbackElement.textContent = "⚠️ 擊碎失敗，請重新嘗試！";
+            negativityTarget.classList.remove('hit-ready');
+            
+            // 檢查彈藥庫是否清空
+            if (ammoContainer.children.length === 0) {
+                placeholderText.style.display = 'block';
             }
         }
-
+    }
+}
         // ----------------------------------------------------
         // 核心邏輯三：碰撞偵測、爆炸動畫與隨機載入 (修改為文字)
         // ----------------------------------------------------
@@ -333,3 +354,4 @@
     </script>
 </body>
 </html>
+
