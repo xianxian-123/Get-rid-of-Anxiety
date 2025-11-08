@@ -203,8 +203,8 @@
             feedbackElement.textContent = `🎉 ${subject.toUpperCase()} 努力成功儲存`;
         }
 
-       // ----------------------------------------------------
-// 核心邏輯二：拖曳功能 (同時支持滑鼠和觸控)
+// ----------------------------------------------------
+// 核心邏輯二：拖曳功能 (修正為使用 pageX/Y 確保座標正確)
 // ----------------------------------------------------
 
 function makeDraggable(element) {
@@ -216,15 +216,15 @@ function makeDraggable(element) {
     element.onmousedown = startDrag;
 
     // 2. 綁定觸控事件
-    element.addEventListener('touchstart', startDrag, { passive: false }); // { passive: false } 允許我們使用 preventDefault
+    element.addEventListener('touchstart', startDrag, { passive: false }); 
 
     // 統一的開始拖曳處理函數
     function startDrag(e) {
-        e.preventDefault(); // 阻止瀏覽器的預設行為（例如手機上的滾動或縮放）
+        e.preventDefault(); 
         
-        // 取得當前事件的座標 (如果是觸控，取第一個觸控點)
-        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        // **改動點：使用 pageX/Y 獲取相對整個頁面的絕對座標**
+        const clientX = e.type.startsWith('touch') ? e.touches[0].pageX : e.pageX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].pageY : e.pageY;
         
         // 1. 切換到絕對定位 (開始拖曳)
         element.classList.add('dragging'); 
@@ -245,11 +245,11 @@ function makeDraggable(element) {
 
     // 統一的移動處理函數
     function elementDrag(e) {
-        e.preventDefault(); // 阻止拖曳時的瀏覽器預設滾動行為
+        e.preventDefault(); 
         
-        // 取得當前事件的座標
-        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        // **改動點：使用 pageX/Y 獲取相對整個頁面的絕對座標**
+        const clientX = e.type.startsWith('touch') ? e.touches[0].pageX : e.pageX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].pageY : e.pageY;
         
         // 使用中心偏移量來定位炸彈的左上角，實現滑鼠/觸控對準中心
         element.style.top = (clientY - CENTER_OFFSET_Y) + "px";
@@ -258,14 +258,14 @@ function makeDraggable(element) {
         // 碰撞偵測 (保持不變)
         if (isColliding(element, negativityTarget) && negativityTarget.style.display !== 'none') {
             negativityTarget.classList.add('hit-ready');
-            feedbackElement.textContent = "🎯 瞄準成功！鬆開手指即可擊碎！"; // 提示詞也改成通用的
+            feedbackElement.textContent = "🎯 瞄準成功！放開即可擊碎！"; 
         } else {
             negativityTarget.classList.remove('hit-ready');
             feedbackElement.textContent = "🚨 外界貶低壓力區 🚨";
         }
     }
 
-    // 統一的結束拖曳處理函數
+    // 統一的結束拖曳處理函數 (保持不變)
     function closeDragElement(e) {
         // 解除事件綁定
         document.onmouseup = null;
@@ -354,4 +354,5 @@ function makeDraggable(element) {
     </script>
 </body>
 </html>
+
 
